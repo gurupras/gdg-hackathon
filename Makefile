@@ -21,7 +21,7 @@ all : setup host
 host : CROSS=
 arm  : CROSS=arm-none-linux-gnueabi-
 
-sources=asound_mute.c asound_read.c
+sources=asound_mute.c asound_read.c sender.c client.c
 objs=$(patsubst %.c,build/%.o,$(sources))
 
 setup:
@@ -30,7 +30,7 @@ setup:
 built-in.o : $(objs)
 	$(call link, $(objs), $@)
 
-host arm : asound_mute asound_read
+host arm : asound_mute asound_read sender client
 	@#$(call shared_executable, $<, $@)
 	@#$(call shared_library, $<, $(LIB_NAME).so)
 	@#$(call static_library, $<, $(LIB_NAME).a)
@@ -39,6 +39,12 @@ asound_mute : asound_mute.o
 	$(call shared_executable, $<, $@)
 
 asound_read : asound_read.o
+	$(call shared_executable, $<, $@)
+
+sender : sender.o
+	$(call shared_executable, $<, $@)
+
+client: client.o
 	$(call shared_executable, $<, $@)
 
 tests : built-in.o

@@ -4,8 +4,8 @@ MAKEFLAGS = --no-builtin-rules
 
 PROG_NAME=test
 
-LIBS= -lasound -lrt
-
+LIBS= -lrt
+SOUND_LIBS= -lasound
 INCLUDE=
 
 vpath %.h $(INCLUDE)
@@ -30,10 +30,15 @@ setup:
 built-in.o : $(objs)
 	$(call link, $(objs), $@)
 
-host arm : asound_mute asound_read sender client
+host arm : alsa sender client
 	@#$(call shared_executable, $<, $@)
 	@#$(call shared_library, $<, $(LIB_NAME).so)
 	@#$(call static_library, $<, $(LIB_NAME).a)
+
+
+alsa : LIBS+=$(SOUND_LIBS)
+
+alsa : asound_mute asound_read
 
 asound_mute : asound_mute.o
 	$(call shared_executable, $<, $@)
@@ -42,10 +47,10 @@ asound_read : asound_read.o
 	$(call shared_executable, $<, $@)
 
 sender : sender.o
-	$(call shared_executable, $<, $@)
+	$(call static_executable, $<, $@)
 
 client: client.o
-	$(call shared_executable, $<, $@)
+	$(call static_executable, $<, $@)
 
 tests : built-in.o
 

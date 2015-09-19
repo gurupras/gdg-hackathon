@@ -1,0 +1,13 @@
+*.o
+*.pyc
+*.a
+*.so
+.*
+*.*~
+build
+
+# Add any binaries here
+
+# Don't ignore
+!.gitignore
+

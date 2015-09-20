@@ -8,6 +8,11 @@ build
 
 # Add any binaries here
 test
+asound_mute
+asound_read
+client
+sender
+tmp
 
 # Don't ignore
 !.gitignore

@@ -25,7 +25,7 @@ int main(int argc, char *argv[])
 	int res;
 	char *message="Hello, World!";
 
-	err = bcast_setup_socket();
+	err = bcast_setup_tx_socket();
 	if(err) {
 		printf("Could not set up socket\n");
 		return err;
@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
 	/* now just sendto() our destination! */
 	while (1) {
-		res = bcast_send(message, 0, strlen(message));
+		res = bcast_tx(message, 0, strlen(message));
 		if (res < 0) {
 			perror("sendto");
 			exit(1);

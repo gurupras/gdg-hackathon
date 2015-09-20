@@ -80,32 +80,33 @@ int main() {
 
 	snd_pcm_hw_params_get_period_time(params,
 			&val, &dir);
-	while (1) 
+	while (1)
 	{
 		rc = snd_pcm_readi(handle,buffer,frames);
-                printf("Buff:%s\n",buffer);
+//		printf("Buff:%s\n",buffer);
 		if (rc == -EPIPE) {
-                        /* EPIPE means overrun */
-                        fprintf(stderr, "overrun occurred\n");
-                        snd_pcm_prepare(handle);
-                } else if (rc < 0) {
-                        fprintf(stderr,
-                                        "error from read: %s\n",
-                                        snd_strerror(rc));
-                } else if (rc != (int)frames) {
-                        fprintf(stderr, "short read, read %d frames\n", rc);
-                }
-		res = bcast_tx(buffer, 0, strlen(buffer));
-                if (rc != size)
-                        fprintf(stderr,
-                                        "short write: wrote %d bytes\n", rc);
+			/* EPIPE means overrun */
+			fprintf(stderr, "overrun occurred\n");
+			snd_pcm_prepare(handle);
+		} else if (rc < 0) {
+			fprintf(stderr,
+					"error from read: %s\n",
+					snd_strerror(rc));
+		} else if (rc != (int)frames) {
+			fprintf(stderr, "short read, read %d frames\n", rc);
+			continue;
+		}
+		res = bcast_tx(buffer, 0, rc);
+		if (res < 0) {
+			perror("sendto");
+			exit(1);
+		}
+		if (res != rc) {
+			fprintf(stderr, "short write: wrote %d bytes\n", rc);
+		}
 
-                if (res < 0) {
-                        perror("sendto");
-                        exit(1);
-                }
-                printf("Packet Sent\n");
-        }
+		printf("Packet Sent\n");
+	}
 
 	snd_pcm_drain(handle);
 	snd_pcm_close(handle);

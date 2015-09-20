@@ -11,10 +11,6 @@
 #include <alsa/asoundlib.h>
 #include "Broadcast.h"
 
-#define HELLO_PORT 1234
-#define HELLO_GROUP "225.0.0.37"
-#define MSGBUFSIZE 256
-
 int main() {
 	int rc;
 	int size;

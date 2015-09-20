@@ -16,9 +16,6 @@
 
 #include "Broadcast.h"
 
-#define HELLO_PORT 1234
-#define HELLO_GROUP "225.0.0.37"
-
 int main(int argc, char *argv[])
 {
 	int err;

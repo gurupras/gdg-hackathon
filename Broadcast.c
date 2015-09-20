@@ -19,9 +19,6 @@
 
 #include "Broadcast.h"
 
-#define BCAST_PORT 1234
-#define BCAST_GROUP "225.0.0.37"
-
 static struct sockaddr_in bcast_tx_addr, bcast_rx_addr;
 static int bcast_tx_fd = -1, bcast_rx_fd = -1;
 

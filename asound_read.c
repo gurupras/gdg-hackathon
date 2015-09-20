@@ -81,8 +81,10 @@ int main() {
 
 	snd_pcm_hw_params_get_period_time(params,
 			&val, &dir);
-	while (1) 
+	while (1)
 	{
+		bzero(buffer, size);
+		/* rc = num frames */
 		rc = snd_pcm_readi(handle,buffer,frames);
                 printf("Buff:%s\n",buffer);
 		if (rc == -EPIPE) {
@@ -96,8 +98,8 @@ int main() {
                 } else if (rc != (int)frames) {
                         fprintf(stderr, "short read, read %d frames\n", rc);
                 }
-		res = bcast_tx(buffer, 0, strlen(buffer));
-                if (rc != size)
+		res = bcast_tx(buffer, 0, size);
+                if (res != size)
                         fprintf(stderr,
                                         "short write: wrote %d bytes\n", rc);
 

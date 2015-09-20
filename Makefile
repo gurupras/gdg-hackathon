@@ -21,7 +21,7 @@ all : setup host
 host : CROSS=
 arm  : CROSS=arm-none-linux-gnueabi-
 
-alsa_sources=asound_mute.c asound_read.c
+alsa_sources=asound_mute.c asound_read.c asound_write.c
 sender_sources=sender.c Broadcast.c
 client_sources=client.c Broadcast.c
 common_sources=Broadcast.c
@@ -48,7 +48,7 @@ common.o : $(common_objs)
 
 alsa : LIBS+=$(SOUND_LIBS)
 
-alsa : asound_mute asound_read
+alsa : asound_mute asound_read asound_write
 
 asound_mute : asound_mute.o
 	$(call shared_executable, $<, $@)
@@ -56,6 +56,8 @@ asound_mute : asound_mute.o
 asound_read : asound_read.o
 	$(call shared_executable, $<, $@)
 
+asound_write: asound_write.o
+	$(call shared_executable, $<, $@)
 
 network: common sender client
 
@@ -105,4 +107,4 @@ static_executable = \
 	@$(addprefix $(CROSS), $(CC)) $(CC_OPTS) -g -static -o $(2) $(1) $(LIBS); \
 	$(call print_cc, $(1), $(2))
 clean :
-	rm -rf *.o *.so *.a $(PROG_NAME) build
+	rm -rf *.o *.so *.a $(PROG_NAME) build asound_mute asound_read sender client

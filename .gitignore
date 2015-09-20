@@ -10,6 +10,7 @@ build
 test
 asound_mute
 asound_read
+asound_write
 client
 sender
 tmp

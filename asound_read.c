@@ -12,6 +12,7 @@
 #include <unistd.h>
 
 #include <alsa/asoundlib.h>
+#include "asound.h"
 #include "Broadcast.h"
 
 int main(int argc, char **argv) {
@@ -58,12 +59,12 @@ int main(int argc, char **argv) {
 	snd_pcm_hw_params_set_channels(handle, params, 2);
 
 	/* 44100 bits/second sampling rate (CD quality) */
-	val = 44100;
+	val = SAMPLE_RATE;
 	snd_pcm_hw_params_set_rate_near(handle, params,
 			&val, &dir);
 
 	/* Set period size to 32 frames. */
-	frames = 960;
+	frames = NUM_FRAMES;
 	snd_pcm_hw_params_set_period_size_near(handle,
 			params, &frames, &dir);
 
@@ -79,7 +80,7 @@ int main(int argc, char **argv) {
 	/* Use a buffer large enough to hold one period */
 	snd_pcm_hw_params_get_period_size(params,
 			&frames, &dir);
-	size = frames * 8; /* 2 bytes/sample, 2 channels */
+	size = frames * FRAME_SIZE; /* 2 bytes/sample, 2 channels */
 	buffer = (char *) malloc(size);
 
 	snd_pcm_hw_params_get_period_time(params,
@@ -90,30 +91,31 @@ int main(int argc, char **argv) {
 	while (1)
 	{
 		bzero(buffer, size);
-		num_frames_read = snd_pcm_readi(handle, buffer, frames);
-		readi_size = num_frames_read * 4;
+		/* rc = num frames */
+		rc = snd_pcm_readi(handle,buffer,frames);
+                printf("Buff:%s\n",buffer);
+		if (rc == -EPIPE) {
+                        /* EPIPE means overrun */
+                        fprintf(stderr, "overrun occurred\n");
+                        snd_pcm_prepare(handle);
+                } else if (rc < 0) {
+                        fprintf(stderr,
+                                        "error from read: %s\n",
+                                        snd_strerror(rc));
+                } else if (rc != (int)frames) {
+                        fprintf(stderr, "short read, read %d frames\n", rc);
+                }
+		res = bcast_tx(buffer, 0, size);
+                if (res != size)
+                        fprintf(stderr,
+                                        "short write: wrote %d bytes\n", rc);
 
-//		printf("Buff:%s\n",buffer);
-		if (num_frames_read == -EPIPE) {
-			/* EPIPE means overrun */
-			fprintf(stderr, "overrun occurred\n");
-			snd_pcm_prepare(handle);
-		} else if (num_frames_read < 0) {
-			fprintf(stderr, "error from read: %s\n", snd_strerror(num_frames_read));
-		} else if (num_frames_read != (int)frames) {
-			fprintf(stderr, "short read, read %d frames\n", num_frames_read);
-			continue;
-		}
-		res = bcast_tx(buffer, 0, readi_size);
-		if (res < 0) {
-			perror("sendto");
-			exit(1);
-		}
-		if (res != readi_size) {
-			fprintf(stderr, "short write: wrote %d bytes\n", num_frames_read);
-		}
-
-	}
+                if (res < 0) {
+                        perror("sendto");
+                        exit(1);
+                }
+                printf("Packet Sent\n");
+        }
 
 	snd_pcm_drain(handle);
 	snd_pcm_close(handle);

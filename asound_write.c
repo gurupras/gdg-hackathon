@@ -9,6 +9,7 @@
 #define ALSA_PCM_NEW_HW_PARAMS_API
 
 #include <alsa/asoundlib.h>
+#include "asound.h"
 #include "Broadcast.h"
 
 int main() {
@@ -53,12 +54,12 @@ int main() {
 	snd_pcm_hw_params_set_channels(handle, params, 2);
 
 	/* 44100 bits/second sampling rate (CD quality) */
-	val = 44100;
+	val = SAMPLE_RATE;
 	snd_pcm_hw_params_set_rate_near(handle, params,
 			&val, &dir);
 
 	/* Set period size to 32 frames. */
-	frames = 32;
+	frames = NUM_FRAMES;
 	snd_pcm_hw_params_set_period_size_near(handle,
 			params, &frames, &dir);
 
@@ -74,7 +75,7 @@ int main() {
 	/* Use a buffer large enough to hold one period */
 	snd_pcm_hw_params_get_period_size(params, &frames,
 			&dir);
-	size = frames * 4; /* 2 bytes/sample, 2 channels */
+	size = frames * FRAME_SIZE; /* 2 bytes/sample, 2 channels */
 	buffer = (char *) malloc(size);
 
 	/* We want to loop for 5 seconds */
@@ -89,21 +90,24 @@ int main() {
 		}
 //		printf("Buff:%s\n\n",buffer);
 		if (rc == 0) {
-			fprintf(stderr, "end of file on input\n");
-			continue;
+			//fprintf(stderr, "end of file on input\n");
+//			break;
 		} else if (rc != size) {
-			fprintf(stderr, "short read: read %d bytes\n", rc);
-			continue;
+			//fprintf(stderr,
+			//		"short read: read %d bytes\n", rc);
 		}
 		rc = snd_pcm_writei(handle, buffer, frames);
 		if (rc == -EPIPE) {
 			/* EPIPE means underrun */
-			fprintf(stderr, "underrun occurred\n");
+			//fprintf(stderr, "underrun occurred\n");
 			snd_pcm_prepare(handle);
 		} else if (rc < 0) {
-			fprintf(stderr, "error from writei: %s\n", snd_strerror(rc));
+			//fprintf(stderr,
+			//		"error from writei: %s\n",
+			//		snd_strerror(rc));
 		}  else if (rc != (int)frames) {
-			fprintf(stderr, "short write, write %d frames\n", rc);
+			//fprintf(stderr,
+			//		"short write, write %d frames\n", rc);
 		}
 	}
 

@@ -8,10 +8,13 @@
 /* Use the newer ALSA API */
 #define ALSA_PCM_NEW_HW_PARAMS_API
 
+#include <stdio.h>
+#include <unistd.h>
+
 #include <alsa/asoundlib.h>
 #include "Broadcast.h"
 
-int main() {
+int main(int argc, char **argv) {
 	int rc;
 	int res;
 	int size;
@@ -21,12 +24,13 @@ int main() {
 	int dir;
 	snd_pcm_uframes_t frames;
 	char *buffer;
+	int num_frames_read;
+	int readi_size;
 
 	bcast_setup_tx_socket();
 
 	/* Open PCM device for recording (capture). */
-	rc = snd_pcm_open(&handle, "looprec",
-			SND_PCM_STREAM_CAPTURE, 0);
+	rc = snd_pcm_open(&handle, "looprec", SND_PCM_STREAM_CAPTURE, 0);
 	if (rc < 0) {
 		fprintf(stderr,
 				"unable to open pcm device: %s\n",
@@ -59,7 +63,7 @@ int main() {
 			&val, &dir);
 
 	/* Set period size to 32 frames. */
-	frames = 32;
+	frames = 960;
 	snd_pcm_hw_params_set_period_size_near(handle,
 			params, &frames, &dir);
 
@@ -75,37 +79,40 @@ int main() {
 	/* Use a buffer large enough to hold one period */
 	snd_pcm_hw_params_get_period_size(params,
 			&frames, &dir);
-	size = frames * 4; /* 2 bytes/sample, 2 channels */
+	size = frames * 8; /* 2 bytes/sample, 2 channels */
 	buffer = (char *) malloc(size);
 
 	snd_pcm_hw_params_get_period_time(params,
 			&val, &dir);
+
+	printf("Size of buffer: %d\n", size);
+	printf("Num frames: %d\n", frames);
 	while (1)
 	{
-		rc = snd_pcm_readi(handle,buffer,frames);
+		bzero(buffer, size);
+		num_frames_read = snd_pcm_readi(handle, buffer, frames);
+		readi_size = num_frames_read * 4;
+
 //		printf("Buff:%s\n",buffer);
-		if (rc == -EPIPE) {
+		if (num_frames_read == -EPIPE) {
 			/* EPIPE means overrun */
 			fprintf(stderr, "overrun occurred\n");
 			snd_pcm_prepare(handle);
-		} else if (rc < 0) {
-			fprintf(stderr,
-					"error from read: %s\n",
-					snd_strerror(rc));
-		} else if (rc != (int)frames) {
-			fprintf(stderr, "short read, read %d frames\n", rc);
+		} else if (num_frames_read < 0) {
+			fprintf(stderr, "error from read: %s\n", snd_strerror(num_frames_read));
+		} else if (num_frames_read != (int)frames) {
+			fprintf(stderr, "short read, read %d frames\n", num_frames_read);
 			continue;
 		}
-		res = bcast_tx(buffer, 0, rc);
+		res = bcast_tx(buffer, 0, readi_size);
 		if (res < 0) {
 			perror("sendto");
 			exit(1);
 		}
-		if (res != rc) {
-			fprintf(stderr, "short write: wrote %d bytes\n", rc);
+		if (res != readi_size) {
+			fprintf(stderr, "short write: wrote %d bytes\n", num_frames_read);
 		}
 
-		printf("Packet Sent\n");
 	}
 
 	snd_pcm_drain(handle);

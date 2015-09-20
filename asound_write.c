@@ -78,8 +78,8 @@ int main() {
 	buffer = (char *) malloc(size);
 
 	/* We want to loop for 5 seconds */
-	snd_pcm_hw_params_get_period_time(params,
-			&val, &dir);
+//	snd_pcm_hw_params_get_period_time(params,
+//			&val, &dir);
 
 	while (1) {
 		bzero(buffer, size);

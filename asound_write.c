@@ -87,13 +87,13 @@ int main() {
 			perror("recvfrom");
 			exit(1);
 		}
-		printf("Buff:%s\n\n",buffer);
+//		printf("Buff:%s\n\n",buffer);
 		if (rc == 0) {
 			fprintf(stderr, "end of file on input\n");
-//			break;
+			continue;
 		} else if (rc != size) {
-			fprintf(stderr,
-					"short read: read %d bytes\n", rc);
+			fprintf(stderr, "short read: read %d bytes\n", rc);
+			continue;
 		}
 		rc = snd_pcm_writei(handle, buffer, frames);
 		if (rc == -EPIPE) {
@@ -101,12 +101,9 @@ int main() {
 			fprintf(stderr, "underrun occurred\n");
 			snd_pcm_prepare(handle);
 		} else if (rc < 0) {
-			fprintf(stderr,
-					"error from writei: %s\n",
-					snd_strerror(rc));
+			fprintf(stderr, "error from writei: %s\n", snd_strerror(rc));
 		}  else if (rc != (int)frames) {
-			fprintf(stderr,
-					"short write, write %d frames\n", rc);
+			fprintf(stderr, "short write, write %d frames\n", rc);
 		}
 	}
 

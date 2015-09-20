@@ -9,11 +9,8 @@
 #define ALSA_PCM_NEW_HW_PARAMS_API
 
 #include <alsa/asoundlib.h>
+#include "asound.h"
 #include "Broadcast.h"
-
-#define HELLO_PORT 1234
-#define HELLO_GROUP "225.0.0.37"
-#define MSGBUFSIZE 256
 
 int main() {
 	int rc;
@@ -57,12 +54,12 @@ int main() {
 	snd_pcm_hw_params_set_channels(handle, params, 2);
 
 	/* 44100 bits/second sampling rate (CD quality) */
-	val = 44100;
+	val = SAMPLE_RATE;
 	snd_pcm_hw_params_set_rate_near(handle, params,
 			&val, &dir);
 
 	/* Set period size to 32 frames. */
-	frames = 32;
+	frames = NUM_FRAMES;
 	snd_pcm_hw_params_set_period_size_near(handle,
 			params, &frames, &dir);
 
@@ -78,7 +75,7 @@ int main() {
 	/* Use a buffer large enough to hold one period */
 	snd_pcm_hw_params_get_period_size(params, &frames,
 			&dir);
-	size = frames * 4; /* 2 bytes/sample, 2 channels */
+	size = frames * FRAME_SIZE; /* 2 bytes/sample, 2 channels */
 	buffer = (char *) malloc(size);
 
 	/* We want to loop for 5 seconds */

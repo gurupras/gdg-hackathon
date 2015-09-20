@@ -14,6 +14,9 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
+
+#include "Broadcast.h"
 
 #define BCAST_PORT 1234
 #define BCAST_GROUP "225.0.0.37"
@@ -29,21 +32,23 @@ int bcast_setup_socket()
     }
 
      /* create what looks like an ordinary UDP socket */
-    if ((bcast_fd = socket(AF_INET,SOCK_DGRAM,0)) < 0) 
+    if ((bcast_fd = socket(AF_INET,SOCK_DGRAM,0)) < 0)
     {
         return -1;
     }
-    
+
     /* set up destination address */
-    memset(&addr, 0, sizeof(addr));
-    addr.sin_family=AF_INET;
-    addr.sin_addr.s_addr=inet_addr(BCAST_PORT);
-    addr.sin_port=htons(BCAST_PORT);
+    memset(&bcast_addr, 0, sizeof(bcast_addr));
+    bcast_addr.sin_family=AF_INET;
+    bcast_addr.sin_addr.s_addr=inet_addr(BCAST_GROUP);
+    bcast_addr.sin_port=htons(BCAST_PORT);
+
+    return 0;
 }
 
 int bcast_send(void *buffer, int start, int len)
 {
-    return sendto(bcast_fd,buffer + start, len, 0,(struct sockaddr *) &addr, sizeof(addr));
+    return sendto(bcast_fd,buffer + start, len, 0,(struct sockaddr *) &bcast_addr, sizeof(bcast_addr));
 }
 
 int bcast_tear_down()

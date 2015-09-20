@@ -7,7 +7,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.CompoundButton;
 import android.widget.Switch;
-import gurupras.hackathon.gdg.com.gdg_hackathon.Utils;
+import gurupras.hackathon.gdg.com.gdg_hackathon.LocalUtils;
 
 public class MainActivity extends Activity {
 
@@ -26,13 +26,13 @@ public class MainActivity extends Activity {
                 if(isChecked) {
                     spk_switch.setChecked(!isChecked);
                     try {
-                    Utils.setProp("sys.hackathon", 1); }
+                    LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 1); }
                     catch (Exception e) {
                         Log.e(TAG, e.getMessage());
                     }
                 } else {
                     try {
-                        Utils.setProp("sys.hackathon", 0); }
+                        LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 0); }
                     catch (Exception e) {
                         Log.e(TAG, e.getMessage());
                     }
@@ -46,14 +46,14 @@ public class MainActivity extends Activity {
                    if(isChecked) {
                        bd_switch.setChecked(!isChecked);
                        try {
-                           Utils.setProp("sys.hackathon", 2); }
-                       catch (Exception e) {
+                           LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 2);
+                       } catch (Exception e) {
                            Log.e(TAG, e.getMessage());
                        }
                 } else {
                    try {
-                       Utils.setProp("sys.hackathon", 0); }
-                   catch (Exception e) {
+                       LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 0); 
+                   } catch (Exception e) {
                        Log.e(TAG, e.getMessage());
                    }
                }

@@ -1,7 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="gurupras.hackathon.gdg.com.gdg_hackathon" >
+    package="gurupras.hackathon.gdg.com.gdg_hackathon" 
+    android:sharedUserId="android.uid.system" >
 
+    <uses-sdk android:minSdkVersion="17" android:targetSdkVersion="19" />
+    
+    <uses-permission android:name="android.permission.ACCESS_SUPERUSER"/>
+	<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE"/>
+	<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
+	      
     <application
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"

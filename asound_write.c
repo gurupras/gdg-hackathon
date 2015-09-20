@@ -91,9 +91,10 @@ int main() {
 			perror("recvfrom");
 			exit(1);
 		}
+		printf("Buff:%s\n\n",buffer);
 		if (rc == 0) {
 			fprintf(stderr, "end of file on input\n");
-			break;
+//			break;
 		} else if (rc != size) {
 			fprintf(stderr,
 					"short read: read %d bytes\n", rc);

@@ -83,7 +83,8 @@ int main() {
 	while (1) 
 	{
 		rc = snd_pcm_readi(handle,buffer,frames);
-                if (rc == -EPIPE) {
+                printf("Buff:%s\n",buffer);
+		if (rc == -EPIPE) {
                         /* EPIPE means overrun */
                         fprintf(stderr, "overrun occurred\n");
                         snd_pcm_prepare(handle);

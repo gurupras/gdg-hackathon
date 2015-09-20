@@ -10,7 +10,7 @@
 
 #include <alsa/asoundlib.h>
 
-int main() {
+int main(int argc, char **argv) {
 	long loops;
 	int rc;
 	int size;
@@ -21,8 +21,13 @@ int main() {
 	snd_pcm_uframes_t frames;
 	char *buffer;
 
+	if(argc < 2) {
+		printf("USAGE: %s PCM_NAME\n", argv[0]);
+		return -1;
+	}
+
 	/* Open PCM device for recording (capture). */
-	rc = snd_pcm_open(&handle, "cras",
+	rc = snd_pcm_open(&handle, argv[1],
 			SND_PCM_STREAM_CAPTURE, 0);
 	if (rc < 0) {
 		fprintf(stderr,

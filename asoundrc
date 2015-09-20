@@ -1,3 +1,4 @@
+# Playback on this device
 pcm.!default {
   type asym
   playback.pcm "lr"
@@ -5,6 +6,7 @@ pcm.!default {
   capture.pcm "hw:0,0"
 }
 
+# Record on this device
 pcm.looprec {
     type hw
     card "Loopback"

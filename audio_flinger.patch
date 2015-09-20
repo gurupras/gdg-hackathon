@@ -1,0 +1,356 @@
+diff --git a/services/audioflinger/Android.mk b/services/audioflinger/Android.mk
+index f0196c6..ea25ff0 100644
+--- a/services/audioflinger/Android.mk
++++ b/services/audioflinger/Android.mk
+@@ -39,6 +39,8 @@ LOCAL_SRC_FILES:=               \
+ 
+ LOCAL_SRC_FILES += StateQueue.cpp
+ 
++LOCAL_SRC_FILES += Broadcast.c
++
+ LOCAL_C_INCLUDES := \
+     $(TOPDIR)frameworks/av/services/audiopolicy \
+     $(call include-path-for, audio-effects) \
+diff --git a/services/audioflinger/Threads.cpp b/services/audioflinger/Threads.cpp
+index 9fccda1..9abd8b0 100644
+--- a/services/audioflinger/Threads.cpp
++++ b/services/audioflinger/Threads.cpp
+@@ -24,6 +24,12 @@
+ #include <math.h>
+ #include <fcntl.h>
+ #include <sys/stat.h>
++#include <unistd.h>
++#include <sys/types.h>
++#include <sys/socket.h>
++#include <netinet/in.h>
++#include <arpa/inet.h>
++
+ #include <cutils/properties.h>
+ #include <media/AudioParameter.h>
+ #include <media/AudioResamplerPublic.h>
+@@ -69,6 +75,8 @@
+ #include <cpustats/ThreadCpuUsage.h>
+ #endif
+ 
++#include "Broadcast.h"
++
+ // ----------------------------------------------------------------------------
+ 
+ // Note: the following macro is used for extremely verbose logging message.  In
+@@ -1239,6 +1247,11 @@ AudioFlinger::PlaybackThread::~PlaybackThread()
+     free(mSinkBuffer);
+     free(mMixerBuffer);
+     free(mEffectBuffer);
++    free(mBCastBuffer);
++    mDoBCast = 0;
++    mDoRx = 1;
++    bcast_tear_down_tx();
++    bcast_tear_down_rx();
+ }
+ 
+ void AudioFlinger::PlaybackThread::dump(int fd, const Vector<String16>& args)
+@@ -1913,6 +1926,7 @@ void AudioFlinger::PlaybackThread::readOutputParameters_l()
+     // with non PCM formats for compressed music, e.g. AAC, and Offload threads.
+     const size_t sinkBufferSize = mNormalFrameCount * mFrameSize;
+     (void)posix_memalign(&mSinkBuffer, 32, sinkBufferSize);
++    (void)posix_memalign(&mBCastBuffer, 32, sinkBufferSize); 
+ 
+     // We resize the mMixerBuffer according to the requirements of the sink buffer which
+     // drives the output.
+@@ -2105,11 +2119,107 @@ void AudioFlinger::PlaybackThread::checkSilentMode_l()
+     }
+ }
+ 
++void AudioFlinger::PlaybackThread::check_init_broadcast_tx()
++{
++    char value[PROPERTY_VALUE_MAX];
++    int fd = open("/sdcard/hackathon", O_RDONLY);
++
++    if (fd < 0)
++    {
++        ALOGE("Unable to open sdcard");
++        // do the usual logic here
++       if (property_get("sys.hackathon", value, "0") <= 0) 
++            return;
++    }
++    else
++    {
++        read(fd, value, 1);
++    }
++
++   // if (property_get("sys.hackathon", value, "0") > 0) 
++   // {
++        // On to off
++        if (mDoBCast && value[0] == '0')
++        {
++            // On to Off
++            ALOGD("Tearing down broadcast socket");
++            bcast_tear_down_tx();
++            mDoBCast = 0;
++        }
++        else if (!mDoBCast && value[0] == '1')
++        {
++            if (bcast_setup_tx_socket())
++            {
++                ALOGD("Error setting up broadcast socket");
++            }
++            else
++            {
++                mDoBCast = 1;
++                ALOGD("Broadcast socket initialized.  Frame size = %u  Sink Size = %u", mFrameSize, mSinkBufferSize);
++            }
++        }
++    //}
++    close(fd);
++}
++
++void AudioFlinger::PlaybackThread::check_init_broadcast_rx()
++{
++    char value[PROPERTY_VALUE_MAX];
++    int fd = open("/sdcard/hackathon", O_RDONLY);
++    
++    if (fd < 0)
++    {
++    ALOGE("Unable to open sdcard");
++        // do the usual logic here
++       if (property_get("sys.hackathon", value, "0") <= 0) 
++            return;
++
++    }
++    else
++    {
++        read(fd, value, 1);
++    }
++        if (mDoRx && value[0] == '0')
++        {
++            // On to Off
++            ALOGD("Tearing down broadcast rx socket");
++            bcast_tear_down_rx();
++            mDoRx = 0;
++        }
++        else if (!mDoRx && value[0] == '2')
++        {
++            // Off to Rx
++            if (bcast_setup_rx_socket())
++            {
++                ALOGD("Error setting up broadcast rx socket");
++            }
++            else
++            {
++                mDoRx = 1;
++                ALOGD("Broadcast rx socket initialized.  Frame size = %u  Sink Size = %u", mFrameSize, mSinkBufferSize);
++            }
++        }
++}
++
++int AudioFlinger::PlaybackThread::do_recv_bcast()
++{
++    memset(mSinkBuffer, 0, mSinkBufferSize);
++    int rec = bcast_rx(mSinkBuffer, mSinkBufferSize);
++    ALOGE("Received %d Bytes", rec);
++    return rec;
++}
++
+ // shared by MIXER and DIRECT, overridden by DUPLICATING
+ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+ {
+     // FIXME rewrite to reduce number of system calls
++    nsecs_t prev = mLastWriteTime;
+     mLastWriteTime = systemTime();
++   
++    // Check if we should start broadcasting 
++    if (mLastWriteTime - prev > 1000000000)
++        check_init_broadcast_tx();
++
+     mInWrite = true;
+     ssize_t bytesWritten;
+     const size_t offset = mCurrentWriteLength - mBytesRemaining;
+@@ -2130,13 +2240,35 @@ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+                         (pipe->maxFrames() * 7) / 8 : mNormalFrameCount * 2);
+             }
+         }
++
++        if (mDoBCast)
++        {
++            // Make a copy because I don't know if the write is going to garble the data
++            memcpy(mBCastBuffer, mSinkBuffer, mSinkBufferSize);
++        }
++        
+         ssize_t framesWritten = mNormalSink->write((char *)mSinkBuffer + offset, count);
++
+         ATRACE_END();
+         if (framesWritten > 0) {
+             bytesWritten = framesWritten * mFrameSize;
+         } else {
+             bytesWritten = framesWritten;
+         }
++        
++        if (mDoBCast && bytesWritten == mSinkBufferSize)
++        {
++            // Only send complete frames
++            if (bcast_tx(mSinkBuffer, 0, mSinkBufferSize) < 0)
++            {
++                ALOGE("Error broadcasting 1");
++            }
++            else
++            {
++                ALOGD("Broadcast 1 successful: offset = %u  len = %u", offset, mSinkBufferSize);
++            }
++        }
++
+         status_t status = mNormalSink->getTimestamp(mLatchD.mTimestamp);
+         if (status == NO_ERROR) {
+             size_t totalFramesWritten = mNormalSink->framesWritten();
+@@ -2159,8 +2291,28 @@ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+         }
+         // FIXME We should have an implementation of timestamps for direct output threads.
+         // They are used e.g for multichannel PCM playback over HDMI.
++        
++        if (mDoBCast)
++        {
++            // Make a copy because I don't know if the write is going to garble the data
++            memcpy(mBCastBuffer, mSinkBuffer, mSinkBufferSize);
++        }
++
+         bytesWritten = mOutput->stream->write(mOutput->stream,
+                                                    (char *)mSinkBuffer + offset, mBytesRemaining);
++        
++        if (mDoBCast)
++        {
++            if (bcast_tx(mBCastBuffer, offset, bytesWritten) < 0)
++            {
++                ALOGE("Error broadcasting");
++            }
++            else
++            {
++                ALOGD("Broadcast successful %u", bytesWritten);
++            }
++        }
++
+         if (mUseAsyncWrite &&
+                 ((bytesWritten < 0) || (bytesWritten == (ssize_t)mBytesRemaining))) {
+             // do not wait for async callback in case of error of full write
+@@ -2168,8 +2320,8 @@ ssize_t AudioFlinger::PlaybackThread::threadLoop_write()
+             ALOG_ASSERT(mCallbackThread != 0);
+             mCallbackThread->setWriteBlocked(mWriteAckSequence);
+         }
+-    }
+-
++    }  
++    
+     mNumWrites++;
+     mInWrite = false;
+     mStandby = false;
+@@ -2182,10 +2334,9 @@ void AudioFlinger::PlaybackThread::threadLoop_drain()
+         ALOGV("draining %s", (mMixerStatus == MIXER_DRAIN_TRACK) ? "early" : "full");
+         if (mUseAsyncWrite) {
+             ALOGW_IF(mDrainSequence & 1, "threadLoop_drain(): out of sequence drain request");
+-            mDrainSequence |= 1;
+             ALOG_ASSERT(mCallbackThread != 0);
+             mCallbackThread->setDraining(mDrainSequence);
+-        }
++       }
+         mOutput->stream->drain(mOutput->stream,
+             (mMixerStatus == MIXER_DRAIN_TRACK) ? AUDIO_DRAIN_EARLY_NOTIFY
+                                                 : AUDIO_DRAIN_ALL);
+@@ -2422,6 +2573,8 @@ bool AudioFlinger::PlaybackThread::threadLoop()
+     const char *logString = NULL;
+ 
+     checkSilentMode_l();
++    
++    nsecs_t lastRxCheck = 0;
+ 
+     while (!exitPending())
+     {
+@@ -2559,7 +2712,7 @@ bool AudioFlinger::PlaybackThread::threadLoop()
+             // or mSinkBuffer (if there are no effects).
+             //
+             // This is done pre-effects computation; if effects change to
+-            // support higher precision, this needs to move.
++            // support high/er precision, this needs to move.
+             //
+             // mMixerBufferValid is only set true by MixerThread::prepareTracks_l().
+             // TODO use sleepTime == 0 as an additional condition.
+@@ -2620,6 +2773,7 @@ bool AudioFlinger::PlaybackThread::threadLoop()
+                         mBytesWritten += ret;
+                         mBytesRemaining -= ret;
+                     }
++                    
+                 } else if ((mMixerStatus == MIXER_DRAIN_TRACK) ||
+                         (mMixerStatus == MIXER_DRAIN_ALL)) {
+                     threadLoop_drain();
+@@ -2661,6 +2815,46 @@ bool AudioFlinger::PlaybackThread::threadLoop()
+ 
+         // FIXME Note that the above .clear() is no longer necessary since effectChains
+         // is now local to this block, but will keep it for now (at least until merge done).
++        
++        // Update last rx check
++        if (mLastWriteTime - lastRxCheck > 1000000000)
++        {
++            lastRxCheck = mLastWriteTime;
++            check_init_broadcast_rx();
++        }  
++      
++        // While the flag to receive is set, get data from the socket and call
++        // the write thread.
++        // Periodically check to see if rx has been disabled. 
++        while (mDoRx)
++        {
++            int res = do_recv_bcast();
++            if (res > 0)
++            {
++                mBytesRemaining = res;
++                ssize_t ret = threadLoop_write();
++                if (ret < 0) {
++                    mBytesRemaining = 0;
++                } else {
++                    mBytesWritten += ret;
++                    mBytesRemaining -= ret;
++                }
++            }
++            else if (res < 0)
++            {
++                mDoRx = 0;
++                bcast_tear_down_rx();
++            }
++            
++            // Update last rx check
++            if (mLastWriteTime - lastRxCheck > 1000000000)
++            {
++                lastRxCheck = mLastWriteTime;
++                check_init_broadcast_rx();
++                //ALOGD("Checking rx broadcast.  result=%d", mDoRx);
++            }
++
++        }
+     }
+ 
+     threadLoop_exit();
+diff --git a/services/audioflinger/Threads.h b/services/audioflinger/Threads.h
+index 1088843..53ff367 100644
+--- a/services/audioflinger/Threads.h
++++ b/services/audioflinger/Threads.h
+@@ -669,6 +669,10 @@ protected:
+     // FIXME overflows every 6+ hours at 44.1 kHz stereo 16-bit samples
+     // mFramesWritten would be better, or 64-bit even better
+     size_t                          mBytesWritten;
++
++    void *mBCastBuffer;
++    int mDoBCast;
++    int mDoRx;
+ private:
+     // mMasterMute is in both PlaybackThread and in AudioFlinger.  When a
+     // PlaybackThread needs to find out if master-muted, it checks it's local
+@@ -828,6 +832,12 @@ private:
+                         //     (except for mFramesReleased which is filled in later),
+                         //     and clock it into latch at next opportunity
+     bool mLatchQValid;  // true means mLatchQ is valid
++
++protected:
++	void check_init_broadcast_tx();
++	void check_init_broadcast_rx();
++	int do_recv_bcast();
++
+ };
+ 
+ class MixerThread : public PlaybackThread {

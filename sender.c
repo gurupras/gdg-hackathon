@@ -14,39 +14,29 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#define HELLO_PORT 1234
-#define HELLO_GROUP "225.0.0.37"
+#include "Broadcast.h"
 
 int main(int argc, char *argv[])
 {
-     struct sockaddr_in addr;
-     int fd;
-//     int cnt;
-//     struct ip_mreq mreq;
-     char *message="Hello, World!";
+	int err;
+	int res;
+	char *message="Hello, World!";
 
-     /* create what looks like an ordinary UDP socket */
-     if ((fd=socket(AF_INET,SOCK_DGRAM,0)) < 0) {
-	  perror("socket");
-	  exit(1);
-     }
+	err = bcast_setup_tx_socket();
+	if(err) {
+		printf("Could not set up socket\n");
+		return err;
+	}
 
-     /* set up destination address */
-     memset(&addr,0,sizeof(addr));
-     addr.sin_family=AF_INET;
-     addr.sin_addr.s_addr=inet_addr(HELLO_GROUP);
-     addr.sin_port=htons(HELLO_PORT);
-     
-     /* now just sendto() our destination! */
-     while (1) {
-	  int res = sendto(fd,message,13,0,(struct sockaddr *) &addr,
-		     sizeof(addr)) < 0;
-	  if (res < 0) {
-	       perror("sendto");
-	       exit(1);
-	  }
-	  printf("Packet Sent\n");
-	  sleep(1);
-     }
-     return 0;
+	/* now just sendto() our destination! */
+	while (1) {
+		res = bcast_tx(message, 0, strlen(message));
+		if (res < 0) {
+			perror("sendto");
+			exit(1);
+		}
+		printf("Packet Sent\n");
+		sleep(1);
+	}
+	return 0;
 }

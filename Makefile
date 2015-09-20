@@ -21,8 +21,19 @@ all : setup host
 host : CROSS=
 arm  : CROSS=arm-none-linux-gnueabi-
 
-sources=asound_mute.c asound_read.c sender.c client.c
-objs=$(patsubst %.c,build/%.o,$(sources))
+alsa_sources=asound_mute.c asound_read.c asound_write.c
+asound_read_sources=asound_read.c Broadcast.c
+asound_write_sources=asound_write.c Broadcast.c
+asound_read_objs=$(patsubst %.c,build/%.o,$(asound_read_sources))
+asound_write_objs=$(patsubst %.c,build/%.o,$(asound_write_sources))
+
+sender_sources=sender.c Broadcast.c
+client_sources=client.c Broadcast.c
+common_sources=Broadcast.c
+alsa_objs=$(patsubst %.c,build/%.o,$(alsa_sources))
+sender_objs=$(patsubst %.c,build/%.o,$(sender_sources))
+client_objs=$(patsubst %.c,build/%.o,$(client_sources))
+common_objs=$(patsubst %.c,build/%.o,$(common_sources))
 
 setup:
 	@mkdir -p build
@@ -30,29 +41,36 @@ setup:
 built-in.o : $(objs)
 	$(call link, $(objs), $@)
 
-host arm : alsa sender client
+host arm : common.o alsa network
 	@#$(call shared_executable, $<, $@)
 	@#$(call shared_library, $<, $(LIB_NAME).so)
 	@#$(call static_library, $<, $(LIB_NAME).a)
 
+common : common.o
+
+common.o : $(common_objs)
+	$(call link, $(common_objs), $@)
 
 alsa : LIBS+=$(SOUND_LIBS)
 
-alsa : asound_mute asound_read
+alsa : asound_mute asound_read asound_write
 
 asound_mute : asound_mute.o
 	$(call shared_executable, $<, $@)
 
-asound_read : asound_read.o
-	$(call shared_executable, $<, $@)
+asound_read : $(asound_read_objs)
+	$(call shared_executable, $(asound_read_objs), $@)
 
-sender : sender.o
-	$(call static_executable, $<, $@)
+asound_write: $(asound_write_objs)
+	$(call shared_executable, $(asound_write_objs), $@)
 
-client: client.o
-	$(call static_executable, $<, $@)
+network: common sender client
 
-tests : built-in.o
+sender : $(sender_objs)
+	$(call static_executable, $(sender_objs), $@)
+
+client : $(client_objs)
+	$(call static_executable, $(client_objs), $@)
 
 
 build/%.o: %.c
@@ -94,4 +112,4 @@ static_executable = \
 	@$(addprefix $(CROSS), $(CC)) $(CC_OPTS) -g -static -o $(2) $(1) $(LIBS); \
 	$(call print_cc, $(1), $(2))
 clean :
-	rm -rf *.o *.so *.a $(PROG_NAME) build
+	rm -rf *.o *.so *.a $(PROG_NAME) build asound_mute asound_read sender client

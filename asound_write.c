@@ -1,23 +1,19 @@
 /*
- *
- * This example reads from the default PCM device
- * and writes to standard output for 5 seconds of data.
- *
- * */
+
+   This example reads standard from input and writes
+   to the default PCM device for 5 seconds of data.
+
+*/
 
 /* Use the newer ALSA API */
 #define ALSA_PCM_NEW_HW_PARAMS_API
-
-#include <stdio.h>
-#include <unistd.h>
 
 #include <alsa/asoundlib.h>
 #include "asound.h"
 #include "Broadcast.h"
 
-int main(int argc, char **argv) {
+int main() {
 	int rc;
-	int res;
 	int size;
 	snd_pcm_t *handle;
 	snd_pcm_hw_params_t *params;
@@ -25,13 +21,12 @@ int main(int argc, char **argv) {
 	int dir;
 	snd_pcm_uframes_t frames;
 	char *buffer;
-	int num_frames_read;
-	int readi_size;
 
-	bcast_setup_tx_socket();
+	bcast_setup_rx_socket();
 
-	/* Open PCM device for recording (capture). */
-	rc = snd_pcm_open(&handle, "looprec", SND_PCM_STREAM_CAPTURE, 0);
+	/* Open PCM device for playback. */
+	rc = snd_pcm_open(&handle, "default",
+			SND_PCM_STREAM_PLAYBACK, 0);
 	if (rc < 0) {
 		fprintf(stderr,
 				"unable to open pcm device: %s\n",
@@ -78,44 +73,43 @@ int main(int argc, char **argv) {
 	}
 
 	/* Use a buffer large enough to hold one period */
-	snd_pcm_hw_params_get_period_size(params,
-			&frames, &dir);
+	snd_pcm_hw_params_get_period_size(params, &frames,
+			&dir);
 	size = frames * FRAME_SIZE; /* 2 bytes/sample, 2 channels */
 	buffer = (char *) malloc(size);
 
-	snd_pcm_hw_params_get_period_time(params,
-			&val, &dir);
+	/* We want to loop for 5 seconds */
+//	snd_pcm_hw_params_get_period_time(params,
+//			&val, &dir);
 
-	printf("Size of buffer: %d\n", size);
-	printf("Num frames: %d\n", frames);
-	while (1)
-	{
+	while (1) {
 		bzero(buffer, size);
-		/* rc = num frames */
-		rc = snd_pcm_readi(handle,buffer,frames);
-                printf("Buff:%s\n",buffer);
+		if ((rc = bcast_rx(buffer, size) < 0)) {
+			perror("recvfrom");
+			exit(1);
+		}
+//		printf("Buff:%s\n\n",buffer);
+		if (rc == 0) {
+			//fprintf(stderr, "end of file on input\n");
+//			break;
+		} else if (rc != size) {
+			//fprintf(stderr,
+			//		"short read: read %d bytes\n", rc);
+		}
+		rc = snd_pcm_writei(handle, buffer, frames);
 		if (rc == -EPIPE) {
-                        /* EPIPE means overrun */
-                        fprintf(stderr, "overrun occurred\n");
-                        snd_pcm_prepare(handle);
-                } else if (rc < 0) {
-                        fprintf(stderr,
-                                        "error from read: %s\n",
-                                        snd_strerror(rc));
-                } else if (rc != (int)frames) {
-                        fprintf(stderr, "short read, read %d frames\n", rc);
-                }
-		res = bcast_tx(buffer, 0, size);
-                if (res != size)
-                        fprintf(stderr,
-                                        "short write: wrote %d bytes\n", rc);
-
-                if (res < 0) {
-                        perror("sendto");
-                        exit(1);
-                }
-                printf("Packet Sent\n");
-        }
+			/* EPIPE means underrun */
+			//fprintf(stderr, "underrun occurred\n");
+			snd_pcm_prepare(handle);
+		} else if (rc < 0) {
+			//fprintf(stderr,
+			//		"error from writei: %s\n",
+			//		snd_strerror(rc));
+		}  else if (rc != (int)frames) {
+			//fprintf(stderr,
+			//		"short write, write %d frames\n", rc);
+		}
+	}
 
 	snd_pcm_drain(handle);
 	snd_pcm_close(handle);

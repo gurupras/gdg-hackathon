@@ -22,8 +22,8 @@ host : CROSS=
 arm  : CROSS=arm-none-linux-gnueabi-
 
 alsa_sources=asound_mute.c asound_read.c asound_write.c
-asound_read_sources=asound_read.c Broadcast.c
-asound_write_sources=asound_write.c Broadcast.c
+asound_read_sources=asound_read.c Broadcast.c asound.o
+asound_write_sources=asound_write.c Broadcast.c asound.o
 asound_read_objs=$(patsubst %.c,build/%.o,$(asound_read_sources))
 asound_write_objs=$(patsubst %.c,build/%.o,$(asound_write_sources))
 

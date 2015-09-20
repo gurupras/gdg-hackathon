@@ -9,9 +9,13 @@ to the default PCM device for 5 seconds of data.
 #define ALSA_PCM_NEW_HW_PARAMS_API
 
 #include <alsa/asoundlib.h>
+#include "Broadcast.h"
+
+#define HELLO_PORT 1234
+#define HELLO_GROUP "225.0.0.37"
+#define MSGBUFSIZE 256
 
 int main() {
-  long loops;
   int rc;
   int size;
   snd_pcm_t *handle;
@@ -20,6 +24,8 @@ int main() {
   int dir;
   snd_pcm_uframes_t frames;
   char *buffer;
+
+  bcast_setup_rx_socket();
 
   /* Open PCM device for playback. */
   rc = snd_pcm_open(&handle, "default",
@@ -78,13 +84,13 @@ int main() {
   /* We want to loop for 5 seconds */
   snd_pcm_hw_params_get_period_time(params,
                                     &val, &dir);
-  /* 5 seconds in microseconds divided by
-   * period time */
-  loops = 5000000 / val;
 
-  while (loops > 0) {
-    loops--;
-    rc = read(0, buffer, size);
+  while (1) {
+ 	bzero(buffer, MSGBUFSIZE);
+        if ((rc = bcast_rx(buffer,MSGBUFSIZE) < 0)) {
+                 perror("recvfrom");
+                 exit(1);
+        }
     if (rc == 0) {
       fprintf(stderr, "end of file on input\n");
       break;

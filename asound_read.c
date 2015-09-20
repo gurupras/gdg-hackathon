@@ -9,9 +9,9 @@
 #define ALSA_PCM_NEW_HW_PARAMS_API
 
 #include <alsa/asoundlib.h>
+#include "Broadcast.h"
 
-int main(int argc, char **argv) {
-	long loops;
+int main() {
 	int rc;
 	int size;
 	snd_pcm_t *handle;
@@ -21,13 +21,10 @@ int main(int argc, char **argv) {
 	snd_pcm_uframes_t frames;
 	char *buffer;
 
-	if(argc < 2) {
-		printf("USAGE: %s PCM_NAME\n", argv[0]);
-		return -1;
-	}
+	bcast_setup_tx_socket();
 
 	/* Open PCM device for recording (capture). */
-	rc = snd_pcm_open(&handle, argv[1],
+	rc = snd_pcm_open(&handle, "looprec",
 			SND_PCM_STREAM_CAPTURE, 0);
 	if (rc < 0) {
 		fprintf(stderr,
@@ -80,30 +77,33 @@ int main(int argc, char **argv) {
 	size = frames * 4; /* 2 bytes/sample, 2 channels */
 	buffer = (char *) malloc(size);
 
-	/* We want to loop for 5 seconds */
 	snd_pcm_hw_params_get_period_time(params,
 			&val, &dir);
-	loops = 5000000 / val;
+	while (1) 
+	{
+		rc = snd_pcm_readi(handle,buffer,frames);
+                if (rc == -EPIPE) {
+                        /* EPIPE means overrun */
+                        fprintf(stderr, "overrun occurred\n");
+                        snd_pcm_prepare(handle);
+                } else if (rc < 0) {
+                        fprintf(stderr,
+                                        "error from read: %s\n",
+                                        snd_strerror(rc));
+                } else if (rc != (int)frames) {
+                        fprintf(stderr, "short read, read %d frames\n", rc);
+                }
+		res = bcast_tx(buffer, 0, strlen(buffer));
+                if (rc != size)
+                        fprintf(stderr,
+                                        "short write: wrote %d bytes\n", rc);
 
-	while (loops > 0) {
-		loops--;
-		rc = snd_pcm_readi(handle, buffer, frames);
-		if (rc == -EPIPE) {
-			/* EPIPE means overrun */
-			fprintf(stderr, "overrun occurred\n");
-			snd_pcm_prepare(handle);
-		} else if (rc < 0) {
-			fprintf(stderr,
-					"error from read: %s\n",
-					snd_strerror(rc));
-		} else if (rc != (int)frames) {
-			fprintf(stderr, "short read, read %d frames\n", rc);
-		}
-		rc = write(1, buffer, size);
-		if (rc != size)
-			fprintf(stderr,
-					"short write: wrote %d bytes\n", rc);
-	}
+                if (res < 0) {
+                        perror("sendto");
+                        exit(1);
+                }
+                printf("Packet Sent\n");
+        }
 
 	snd_pcm_drain(handle);
 	snd_pcm_close(handle);

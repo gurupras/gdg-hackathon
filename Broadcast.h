@@ -1,3 +1,6 @@
+#define BCAST_PORT 1234
+#define BCAST_GROUP "225.0.0.37"
+
 #ifdef __cplusplus
 extern "C" {
 #endif

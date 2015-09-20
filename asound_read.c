@@ -13,6 +13,7 @@
 
 int main() {
 	int rc;
+	int res;
 	int size;
 	snd_pcm_t *handle;
 	snd_pcm_hw_params_t *params;

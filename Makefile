@@ -24,6 +24,8 @@ arm  : CROSS=arm-none-linux-gnueabi-
 alsa_sources=asound_mute.c asound_read.c asound_write.c
 asound_read_sources=asound_read.c Broadcast.c
 asound_write_sources=asound_write.c Broadcast.c
+asound_read_objs=$(patsubst %.c,build/%.o,$(asound_read_sources))
+asound_write_objs=$(patsubst %.c,build/%.o,$(asound_write_sources))
 
 sender_sources=sender.c Broadcast.c
 client_sources=client.c Broadcast.c
@@ -56,11 +58,11 @@ alsa : asound_mute asound_read asound_write
 asound_mute : asound_mute.o
 	$(call shared_executable, $<, $@)
 
-asound_read : Broadcast.o asound_read.o
-	$(call shared_executable, $<, $@)
+asound_read : $(asound_read_objs)
+	$(call shared_executable, $(asound_read_objs), $@)
 
-asound_write: Broadcast.o asound_write.o
-	$(call shared_executable, $(), $@)
+asound_write: $(asound_write_objs)
+	$(call shared_executable, $(asound_write_objs), $@)
 
 network: common sender client
 

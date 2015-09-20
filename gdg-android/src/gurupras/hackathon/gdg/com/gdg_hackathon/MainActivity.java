@@ -26,13 +26,13 @@ public class MainActivity extends Activity {
                 if(isChecked) {
                     spk_switch.setChecked(!isChecked);
                     try {
-                    LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 1); }
+                    LocalUtils.writeToSDCard(LocalUtils.HACK_PATH + "/" + "hackathon", 1); }
                     catch (Exception e) {
                         Log.e(TAG, e.getMessage());
                     }
                 } else {
                     try {
-                        LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 0); }
+                        LocalUtils.writeToSDCard(LocalUtils.HACK_PATH + "/" + "hackathon", 0); }
                     catch (Exception e) {
                         Log.e(TAG, e.getMessage());
                     }
@@ -46,13 +46,13 @@ public class MainActivity extends Activity {
                    if(isChecked) {
                        bd_switch.setChecked(!isChecked);
                        try {
-                           LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 2);
+                           LocalUtils.writeToSDCard(LocalUtils.HACK_PATH + "/" + "hackathon", 2);
                        } catch (Exception e) {
                            Log.e(TAG, e.getMessage());
                        }
                 } else {
                    try {
-                       LocalUtils.writeToSDCard(LocalUtils.SDCARD + "/" + "hackathon", 0); 
+                       LocalUtils.writeToSDCard(LocalUtils.HACK_PATH + "/" + "hackathon", 0); 
                    } catch (Exception e) {
                        Log.e(TAG, e.getMessage());
                    }

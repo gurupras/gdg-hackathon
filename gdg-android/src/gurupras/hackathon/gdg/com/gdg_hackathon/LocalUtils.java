@@ -17,8 +17,9 @@ import android.util.Log;
 
 public class LocalUtils {
     public static final String TAG = MainActivity.TAG + "->" + Utils.class.getSimpleName();
-    public static final String SDCARD = Environment.getExternalStorageDirectory().getPath();
-
+    public static final String HACK_PATH = Environment.getExternalStorageDirectory().getPath();
+    //public static final String HACK_PATH = "/mnt/hack";
+    
     public static void setProp(final String key, final Object value) throws InterruptedException, Exception {
 	        	Process p = Runtime.getRuntime().exec("su /system/bin/setprop " + key + " " + value.toString());
         		p.waitFor();

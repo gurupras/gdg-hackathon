@@ -12,15 +12,17 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 #define HELLO_PORT 1234
 #define HELLO_GROUP "225.0.0.37"
 
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
      struct sockaddr_in addr;
-     int fd, cnt;
-     struct ip_mreq mreq;
+     int fd;
+//     int cnt;
+//     struct ip_mreq mreq;
      char *message="Hello, World!";
 
      /* create what looks like an ordinary UDP socket */
@@ -46,4 +48,5 @@ main(int argc, char *argv[])
 	  printf("Packet Sent\n");
 	  sleep(1);
      }
+     return 0;
 }
